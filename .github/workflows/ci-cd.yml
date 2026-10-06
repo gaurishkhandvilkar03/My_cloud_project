@@ -1,0 +1,49 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-dev.txt
+      - name: Run tests
+        run: pytest -v
+
+  deploy:
+    # Deploys only from main, and only once the Azure secrets are configured
+    # (see README → "Continuous deployment").
+    needs: test
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    env:
+      AZURE_FUNCTIONAPP_NAME: ${{ vars.AZURE_FUNCTIONAPP_NAME }}
+      HAS_PUBLISH_PROFILE: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE != '' }}
+    steps:
+      - name: Skip if Azure is not configured
+        if: env.HAS_PUBLISH_PROFILE != 'true' || env.AZURE_FUNCTIONAPP_NAME == ''
+        run: echo "::notice::Azure secrets not set yet - skipping deployment."
+      - uses: actions/checkout@v4
+        if: env.HAS_PUBLISH_PROFILE == 'true' && env.AZURE_FUNCTIONAPP_NAME != ''
+      - uses: actions/setup-python@v5
+        if: env.HAS_PUBLISH_PROFILE == 'true' && env.AZURE_FUNCTIONAPP_NAME != ''
+        with:
+          python-version: "3.11"
+      - name: Deploy to Azure Functions
+        if: env.HAS_PUBLISH_PROFILE == 'true' && env.AZURE_FUNCTIONAPP_NAME != ''
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
+          package: .
+          publish-profile: ${{ secrets.AZURE_FUNCTIONAPP_PUBLISH_PROFILE }}
+          scm-do-build-during-deployment: true
+          enable-oryx-build: true
