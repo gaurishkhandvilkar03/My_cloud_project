@@ -1,4 +1,4 @@
-# My_cloud_project — Serverless URL Shortener on Microsoft Azure
+# My_cloud_project - Serverless URL Shortener on Microsoft Azure
 
 A cloud-computing assignment project: a **serverless REST API** that turns long URLs
 into short links, built with **Azure Functions** (Python) and **Azure Table Storage**,
